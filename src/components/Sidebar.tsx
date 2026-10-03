@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
+  Shield,
   LayoutDashboard,
   CalendarDays,
   Bot,
@@ -119,6 +120,16 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     badge: '37',
     badgeColor: 'bg-[#fcd34d] text-amber-950 font-black border border-amber-300 shadow-sm',
     category: 'info'
+  },
+  {
+    id: 'focus-lock',
+    label: 'Focus Shield & App Lock',
+    shortLabel: 'Focus Guard',
+    href: '/focus-lock',
+    icon: Shield,
+    badge: 'GUARD',
+    badgeColor: 'bg-rose-500 text-white font-black border border-rose-300 shadow-sm animate-pulse',
+    category: 'tools'
   },
   {
     id: 'error-log',

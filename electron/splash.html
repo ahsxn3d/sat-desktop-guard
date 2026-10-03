@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: radial-gradient(circle at 50% 25%, #2a552e 0%, #17381b 60%, #0d2210 100%);
+      color: #f2f8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Outfit", sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-app-region: drag;
+      border: 1.5px solid #8ebc85;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px -10px rgba(10, 25, 12, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(142, 188, 133, 0.2);
+      border: 1px solid rgba(142, 188, 133, 0.4);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #bbf7d0;
+      margin-bottom: 20px;
+      font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+    }
+    .logo-container {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pulse-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(142, 188, 133, 0.25);
+      animation: pulse 2.2s infinite ease-out;
+    }
+    .icon {
+      position: relative;
+      z-index: 2;
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      border: 2px solid #a6c4a1;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 0 25px rgba(110, 231, 183, 0.25);
+      object-fit: cover;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin-bottom: 4px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    p {
+      font-size: 12px;
+      color: #a7d0a2;
+      font-weight: 600;
+      margin-bottom: 22px;
+      letter-spacing: 0.02em;
+    }
+    .progress-bar-container {
+      width: 260px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(166, 196, 161, 0.25);
+    }
+    .progress-bar {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, #4ade80, #86efac, #fcd34d);
+      border-radius: 999px;
+      animation: load 1.8s infinite ease-in-out;
+    }
+    .status-text {
+      margin-top: 14px;
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+      color: #86efac;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.92); opacity: 0.8; }
+      100% { transform: scale(1.55); opacity: 0; }
+    }
+    @keyframes load {
+      0% { transform: translateX(-100%); width: 25%; }
+      50% { width: 55%; }
+      100% { transform: translateX(260%); width: 25%; }
+    }
+  </style>
+</head>
+<body>
+  <span class="badge">🌿 Anti-Burnout Desktop Guard</span>
+  <div class="logo-container">
+    <div class="pulse-ring"></div>
+    <img src="../public/icon.png" class="icon" alt="SAT Guard">
+  </div>
+  <h1>SAT FOCUS GUARD</h1>
+  <p>Zen Botanicals &bull; Distraction Lockdown Active</p>
+  <div class="progress-bar-container">
+    <div class="progress-bar"></div>
+  </div>
+  <div class="status-text">INITIALIZING BOTANICAL FOCUS SHIELD...</div>
+</body>
+</html>

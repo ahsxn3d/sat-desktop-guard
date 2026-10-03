@@ -1,11 +1,35 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { FocusGuardService } = require('./guardService');
 
 let mainWindow = null;
+let splashWindow = null;
 const guardService = new FocusGuardService();
 
-function createWindow() {
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 480,
+    height: 340,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    center: true,
+    show: false,
+    icon: path.join(__dirname, '../public/favicon.ico'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.once('ready-to-show', () => {
+    splashWindow.show();
+  });
+}
+
+function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -13,7 +37,8 @@ function createWindow() {
     minHeight: 700,
     backgroundColor: '#071521',
     title: 'SAT Focus Guard - The Anti-Burnout Desktop Rulebook',
-    icon: path.join(__dirname, '../public/icon.png'),
+    icon: path.join(__dirname, '../public/favicon.ico'),
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -26,33 +51,42 @@ function createWindow() {
   const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
   mainWindow.loadURL(startUrl);
 
+  mainWindow.once('ready-to-show', () => {
+    // Smooth transition from splash to main window
+    setTimeout(() => {
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+    }, 1200);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  createSplashWindow();
+  createMainWindow();
 
-  // Initialize guard service with window reference to send live events
   guardService.init(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createMainWindow();
     }
   });
 });
 
 app.on('window-all-closed', () => {
-  // Always clean up blocking state (e.g. hosts file restore) before closing
   guardService.emergencyCleanup();
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// Clean up if process exits abruptly
 process.on('SIGINT', () => {
   guardService.emergencyCleanup();
   process.exit();

@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ['@prisma/client'],
   reactStrictMode: true,
+  devIndicators: false,
 };
 
 export default nextConfig;
