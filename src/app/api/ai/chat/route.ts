@@ -6,6 +6,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { STUDY_PLAN_WEEKS } from '@/data/studyPlan';
 import { SAT_FORMULAS_DATA } from '@/data/satFormulas';
 import { CHEAT_CODES } from '@/data/cheatCodes';
+import { ALL_37_OFFICIAL_MATH_LESSONS } from '@/data/mathCurriculumUpgrade';
+import { READING_WRITING_UNITS } from '@/data/readingWritingCurriculum';
 
 // Fallback in-memory session store for guest users
 const guestSessions: Record<string, { mode: string; title: string; messages: any[] }> = {};
@@ -305,17 +307,20 @@ Never tell the student to manually edit code or files. You have the direct tool 
       const topFormulas = SAT_FORMULAS_DATA.slice(0, 10).map(f => `${f.name}: ${f.formula}`).join('\n');
       const topCheats = CHEAT_CODES.slice(0, 5).map(c => `${c.title}: ${c.recommendedSyntax || c.ruleSummary}`).join('\n');
       systemInstruction += `
-MODE: SAT MASTER TEACHER.
+MODE: SAT MASTER TEACHER (OFFICIAL KHAN ACADEMY SAT CURRICULUM FIDELITY).
 You are an expert SAT tutor for Math and Reading/Writing.
-You know the official SAT test specs, the exact 26 SAT formulas, and Desmos calculator shortcuts.
+CRITICAL MANDATE: All lesson explanations, rules, steps, and formulas MUST strictly reflect the verbatim structure, terminology, and exact solving methods of official Khan Academy SAT units and College Board standards.
+When explaining or solving any concept:
+1. State the exact Khan Academy Unit & Lesson title (e.g. "Khan Academy Math Unit 2 / 6 / 10: Solving Linear Equations and Inequalities" or "Khan Academy Reading & Writing Unit 4: Transitions").
+2. Present the exact Step-by-Step Method in the exact chronological sequence shown on Khan Academy (e.g., Step 1: Isolate the claim / Identify relationship; Step 2: Create a test phrase / Categorize transition; Step 3: Eliminate distractors / Check data).
+3. If it is Math: State the exact formula, isolation algebra, 3-tier difficulty escalation (Foundations vs. Medium vs. Hard 750+), and Desmos graphing shortcuts.
+4. If it is Reading & Writing: State the exact rhetorical rules (e.g., Period = Semicolon rule, Dangling Modifier rule, 5 Transition categories: Agreement, Contrast, Sequence, Addition, Cause/Effect, and the Bare-Bones non-native strategy).
+5. Never invent informal rules; adhere 100% to the verified Khan Academy and College Board Digital SAT curriculum specifications.
+
 Reference Formulas:
 ${topFormulas}
 Desmos Shortcuts:
-${topCheats}
-When answering math or grammar questions:
-- Walk through the problem step-by-step.
-- Highlight the quickest method (including Desmos shortcuts when applicable).
-- Point out the exact trap answer choices that College Board designs to catch students.`;
+${topCheats}`;
     } else if (mode === 'coach') {
       systemInstruction += `
 MODE: ANTI-BURNOUT COACH & PACING MENTOR.

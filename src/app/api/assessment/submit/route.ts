@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processAssessmentSubmission } from '@/lib/mastery';
+import { submitAssessmentSchema } from '@/lib/validations/user';
 import { TestType } from '@prisma/client';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { userId, testType, targetId, answers } = body;
+    const rawBody = await req.json();
 
-    if (!userId || !testType || !answers) {
+    // Strict Zod schema validation: prevents tampering and malformed payloads
+    const parseResult = submitAssessmentSchema.safeParse(rawBody);
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: 'userId, testType, and answers dictionary are required' },
+        {
+          error: 'Validation failed',
+          issues: parseResult.error.issues.map((i) => i.message)
+        },
         { status: 400 }
       );
     }
 
+    const { userId, testType, targetId, answers } = parseResult.data;
+
+    // Server-side scoring only: client scores are ignored completely
     const result = await processAssessmentSubmission({
       userId,
       testType: testType as TestType,
@@ -35,7 +43,10 @@ export async function POST(req: NextRequest) {
       questionResults: result.questionResults
     });
   } catch (error: any) {
-    console.error('Error submitting assessment:', error);
-    return NextResponse.json({ error: error.message || 'Failed to submit assessment' }, { status: 500 });
+    console.error('Error in assessment submit endpoint:', error);
+    return NextResponse.json(
+      { error: error.message || 'Server error evaluating assessment' },
+      { status: 500 }
+    );
   }
 }

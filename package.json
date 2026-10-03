@@ -29,7 +29,8 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
-    "tailwindcss": "^4.1.14"
+    "tailwindcss": "^4.1.14",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
