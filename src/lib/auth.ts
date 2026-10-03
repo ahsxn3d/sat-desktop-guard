@@ -1,8 +1,12 @@
 import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { prisma } from './prisma';
 
 export const authOptions: NextAuthOptions = {
+  // Use Prisma Adapter to sync users, accounts, and sessions to PostgreSQL
+  adapter: PrismaAdapter(prisma) as any,
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -14,11 +18,12 @@ export const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
           }),
         ]
       : []),
 
-    // Quick Sign-In / Demo Provider for instant testing and local development
+    // Quick Sign-In / Demo Credentials Provider
     CredentialsProvider({
       id: 'credentials',
       name: 'Quick Access',
@@ -32,17 +37,29 @@ export const authOptions: NextAuthOptions = {
         }
 
         const email = credentials.email.trim().toLowerCase();
-        const adminEmail = (process.env.ADMIN_EMAIL || 'admin@gmail.com').trim().toLowerCase();
+        const adminEmail = (process.env.ADMIN_EMAIL || 'muhammadahsanjaved09@gmail.com').trim().toLowerCase();
         const isAdmin = email === adminEmail;
 
-        return {
-          id: `usr-${Buffer.from(email).toString('hex').substring(0, 16)}`,
-          name: credentials.name?.trim() || (isAdmin ? 'Admin Organizer' : 'SAT Scholar'),
-          email: email,
-          image: isAdmin
-            ? 'https://api.dicebear.com/7.x/bottts/svg?seed=AdminBoss'
-            : `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(email)}`,
-        };
+        // Upsert user in PostgreSQL so they have a persistent DB record
+        const user = await prisma.user.upsert({
+          where: { email },
+          update: {
+            name: credentials.name?.trim() || undefined,
+            role: isAdmin ? 'ADMIN' : undefined
+          },
+          create: {
+            email,
+            name: credentials.name?.trim() || (isAdmin ? 'Admin Organizer' : 'SAT Scholar'),
+            role: isAdmin ? 'ADMIN' : 'USER',
+            streakCount: 1,
+            lastActiveDate: new Date(),
+            image: isAdmin
+              ? 'https://api.dicebear.com/7.x/bottts/svg?seed=AdminBoss'
+              : `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(email)}`
+          }
+        });
+
+        return user;
       },
     }),
   ],
@@ -55,10 +72,9 @@ export const authOptions: NextAuthOptions = {
         token.picture = user.image;
       }
 
-      const adminEmail = (process.env.ADMIN_EMAIL || 'admin@gmail.com').trim().toLowerCase();
+      const adminEmail = (process.env.ADMIN_EMAIL || 'muhammadahsanjaved09@gmail.com').trim().toLowerCase();
       const currentEmail = (token.email || '').trim().toLowerCase();
 
-      // Check if current user is the configured Admin Gmail
       token.role = currentEmail && currentEmail === adminEmail ? 'ADMIN' : 'USER';
 
       return token;

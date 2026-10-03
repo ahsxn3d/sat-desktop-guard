@@ -3,6 +3,8 @@
 // ==============================================================================
 // Comprehensive database schema supporting all website features:
 // - User & NextAuth authentication
+// - 5-Tier Curriculum Hierarchy: Domain -> Course -> Unit -> Lesson -> Skill -> Question
+// - User Mastery State Machine & High-Stakes Test Attempts
 // - Study roadmap task completion & rollover state
 // - Daily anchor time & timeline schedule settings
 // - Daily journal notes & reflection
@@ -44,6 +46,27 @@ enum DomainType {
   READING_WRITING
 }
 
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MasteryStatus {
+  NOT_STARTED
+  ATTEMPTED
+  FAMILIAR
+  PROFICIENT
+  MASTERED
+}
+
+enum TestType {
+  PRACTICE
+  QUIZ
+  UNIT_TEST
+  DIAGNOSTIC
+}
+
 // ------------------------------------------------------------------------------
 // USER & AUTHENTICATION (NextAuth Compatible)
 // ------------------------------------------------------------------------------
@@ -57,6 +80,8 @@ model User {
   emailVerified      DateTime?
   image              String?
   role               Role                    @default(USER)
+  streakCount        Int                     @default(0)
+  lastActiveDate     DateTime?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
@@ -72,6 +97,8 @@ model User {
   testScores         BluebookTestScore[]
   stuckConcepts      UserStuckConcept[]
   aiChatSessions     AIChatSession[]
+  masteries          UserMastery[]
+  testAttempts       TestAttempt[]
 }
 
 model Account {
@@ -113,25 +140,149 @@ model VerificationToken {
 }
 
 // ------------------------------------------------------------------------------
+// 5-TIER CURRICULUM HIERARCHY & ASSESSMENT ENGINE
+// Domain -> Course -> Unit -> Lesson -> Skill -> Question
+// ------------------------------------------------------------------------------
+
+model Domain {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?  @db.Text
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses     Course[]
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?  @db.Text
+  domainId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  domain      Domain   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  units       Unit[]
+
+  @@index([domainId])
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  title     String
+  order     Int      @default(0)
+  courseId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id        String   @id @default(cuid())
+  title     String
+  order     Int      @default(0)
+  unitId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  skills    Skill[]
+
+  @@index([unitId])
+}
+
+model Skill {
+  id        String        @id @default(cuid())
+  title     String
+  slug      String        @unique
+  lessonId  String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  lesson    Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions Question[]
+  masteries UserMastery[]
+
+  @@index([lessonId])
+}
+
+model Question {
+  id         String     @id @default(cuid())
+  skillId    String
+  prompt     String     @db.Text
+  options    Json
+  solution   String     @db.Text
+  hints      String[]
+  difficulty Difficulty @default(MEDIUM)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  skill      Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([skillId])
+  @@index([difficulty])
+}
+
+model UserMastery {
+  id        String        @id @default(cuid())
+  userId    String
+  skillId   String
+  status    MasteryStatus @default(NOT_STARTED)
+  updatedAt DateTime      @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill     Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
+  @@index([status])
+}
+
+model TestAttempt {
+  id             String    @id @default(cuid())
+  userId         String
+  testType       TestType
+  score          Float
+  totalQuestions Int
+  passed         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([testType])
+  @@index([createdAt])
+}
+
+// ------------------------------------------------------------------------------
 // USER OVERALL PROGRESS & SETTINGS
 // ------------------------------------------------------------------------------
 
 model UserProgress {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  completedTaskIds      Json     @default("{}") // Map of taskId -> boolean (e.g. {"w1-d1-math": true})
-  taskCompletionDays    Json?    @default("{}") // Map of taskId -> completedDateStr (for dynamic rollover)
-  taskScheduleOverrides Json?    @default("{}") // Map of taskId -> targetDateStr (explicit manual/AI shifts)
-  packingList           Json?    @default("[]") // Array of packing items state
-  anchorTime         String?  @default("20:30") // Daily start anchor time (e.g. "20:30" 8:30 PM)
-  targetScore        Int?     @default(1550) // Student target SAT score
-  examDate           String?  @default("2026-11-07") // Target SAT exam date (Nov 7, 2026)
-  lastActiveDate     String?  // e.g. "2026-09-12"
-  diagnosticProfile  Json?    // Student onboarding answers used to generate their personal Phase 1 & 2
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  completedTaskIds      Json     @default("{}")
+  taskCompletionDays    Json?    @default("{}")
+  taskScheduleOverrides Json?    @default("{}")
+  packingList           Json?    @default("[]")
+  anchorTime            String?  @default("20:30")
+  targetScore           Int?     @default(1550)
+  examDate              String?  @default("2026-11-07")
+  lastActiveDate        String?
+  diagnosticProfile     Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ------------------------------------------------------------------------------
@@ -141,7 +292,7 @@ model UserProgress {
 model UserDayNote {
   id        String   @id @default(cuid())
   userId    String
-  dateStr   String   // e.g. "2026-09-12"
+  dateStr   String
   notes     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -159,13 +310,13 @@ model UserDayNote {
 model UserErrorLog {
   id            String   @id @default(cuid())
   userId        String
-  date          String?  // Date recorded e.g. "2026-09-12"
-  testOrSection String   // e.g. "Bluebook Test #1", "Khan Drill", "UWorld"
-  questionRef   String   // e.g. "Module 2, Q14"
-  domain        String   @default("Math") // "Math" | "Reading/Writing"
-  whyMissed     String   @db.Text // Root cause: why did you miss this question?
-  takeawayRule  String   @db.Text // Takeaway rule: formula, grammar rule, or strategy to prevent repeating
-  reviewed      Boolean  @default(false) // Flagged during buffer review days
+  date          String?
+  testOrSection String
+  questionRef   String
+  domain        String   @default("Math")
+  whyMissed     String   @db.Text
+  takeawayRule  String   @db.Text
+  reviewed      Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -183,15 +334,15 @@ model UserErrorLog {
 model UserSessionLog {
   id            String   @id @default(cuid())
   userId        String
-  dateStr       String   // e.g. "2026-09-12"
-  dayTitle      String?  // e.g. "Tomorrow (Sat Sep 12) - Day 1 Session"
-  phase1Seconds Int      @default(0) // Math actual elapsed time in seconds
-  breakSeconds  Int      @default(0) // Break actual elapsed time in seconds
-  phase2Seconds Int      @default(0) // Reading/Writing actual elapsed time in seconds
-  totalSeconds  Int      @default(0) // Total study session time in seconds
-  totalMinutes  Float    @default(0) // Total session time in minutes
-  overallRating String?  // "too_fast" | "perfect" | "too_late"
-  details       Json?    // Complete SectionPacingResult payload for math, break, and rw
+  dateStr       String
+  dayTitle      String?
+  phase1Seconds Int      @default(0)
+  breakSeconds  Int      @default(0)
+  phase2Seconds Int      @default(0)
+  totalSeconds  Int      @default(0)
+  totalMinutes  Float    @default(0)
+  overallRating String?
+  details       Json?
   completedAt   DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -209,8 +360,8 @@ model UserSessionLog {
 model UserPackingItem {
   id        String   @id @default(cuid())
   userId    String
-  item      String   // Item description e.g. "Acceptable Photo ID"
-  category  String   @default("essential") // "essential" | "tech" | "comfort" | "custom"
+  item      String
+  category  String   @default("essential")
   required  Boolean  @default(false)
   packed    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -228,7 +379,7 @@ model UserPackingItem {
 model UserCheatCodeBookmark {
   id          String   @id @default(cuid())
   userId      String
-  cheatCodeId String   // ID from cheatCodes.ts e.g. "desmos-systems", "desmos-roots"
+  cheatCodeId String
   bookmarked  Boolean  @default(true)
   mastered    Boolean  @default(false)
   notes       String?  @db.Text
@@ -248,12 +399,12 @@ model UserCheatCodeBookmark {
 model BluebookTestScore {
   id          String   @id @default(cuid())
   userId      String
-  testNumber  Int      // 1 to 6
-  testName    String   // e.g. "Bluebook Practice Test #1"
-  dateTaken   String   // e.g. "2026-09-19"
-  mathScore   Int?     // 200 - 800
-  rwScore     Int?     // 200 - 800
-  totalScore  Int?     // 400 - 1600
+  testNumber  Int
+  testName    String
+  dateTaken   String
+  mathScore   Int?
+  rwScore     Int?
+  totalScore  Int?
   notes       String?  @db.Text
   completed   Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -272,9 +423,9 @@ model BluebookTestScore {
 model UserCustomTask {
   id        String   @id @default(cuid())
   userId    String
-  dateStr   String   // e.g. "2026-09-12"
+  dateStr   String
   label     String
-  subject   String   @default("review") // "math" | "rw" | "test" | "drill" | "buffer" | "review" | "logistics"
+  subject   String   @default("review")
   code      String?
   topic     String?
   completed Boolean  @default(false)
@@ -294,7 +445,7 @@ model SystemAnnouncement {
   id          String   @id @default(cuid())
   title       String
   content     String   @db.Text
-  priority    String   @default("normal") // "normal" | "high" | "urgent"
+  priority    String   @default("normal")
   active      Boolean  @default(true)
   createdById String?
   createdAt   DateTime @default(now())
@@ -308,16 +459,16 @@ model SystemAnnouncement {
 model UserStuckConcept {
   id             String   @id @default(cuid())
   userId         String
-  dateStr        String   // e.g. "2026-09-14"
-  dayNumber      Int?     // e.g. 1
-  lessonCode     String   // e.g. "MATH U3.2"
-  lessonTitle    String   // e.g. "Unit conversion"
-  chapter        String   // e.g. "Problem Solving & Data Analysis", "Algebra", "Advanced Math", "Geometry & Trigonometry"
-  conceptFormula String   // e.g. "Dimensional analysis diagonal canceling", "Slope formula"
-  notes          String   @db.Text // What caused you to get stuck / root cause
-  takeawayRule   String?  @db.Text // Takeaway rule / formula to remember
-  resolved       Boolean  @default(false) // Whether student mastered this concept later
-  errorLogId     String?  // Linked UserErrorLog entry if synchronized
+  dateStr        String
+  dayNumber      Int?
+  lessonCode     String
+  lessonTitle    String
+  chapter        String
+  conceptFormula String
+  notes          String   @db.Text
+  takeawayRule   String?  @db.Text
+  resolved       Boolean  @default(false)
+  errorLogId     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -335,7 +486,7 @@ model UserStuckConcept {
 model AIChatSession {
   id        String          @id @default(cuid())
   userId    String
-  mode      String          @default("plan_modifier") // "plan_modifier" | "teacher" | "coach" | "error_worker"
+  mode      String          @default("plan_modifier")
   title     String          @default("New Chat")
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
@@ -350,9 +501,9 @@ model AIChatSession {
 model AIChatMessage {
   id         String        @id @default(cuid())
   sessionId  String
-  role       String        // "user" | "assistant" | "system"
+  role       String
   content    String        @db.Text
-  actionData Json?         // Action execution payload e.g. shifted task or logged error
+  actionData Json?
   createdAt  DateTime      @default(now())
 
   session    AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
