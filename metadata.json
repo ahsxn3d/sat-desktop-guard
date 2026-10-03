@@ -1,0 +1,6 @@
+{
+  "name": "The Anti-Burnout Rulebook",
+  "description": "Structured anti-burnout SAT study plan with 90-minute daily cap timer, weekly pacing, and Bluebook arena tracker.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

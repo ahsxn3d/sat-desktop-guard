@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #d7e5d2;
+    color: #122810;
+    -webkit-font-smoothing: antialiased;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+}
+
+/* ==============================================================================
+   LENIS SMOOTH SCROLL INTEGRATION
+   ============================================================================== */
+html.lenis, html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* ==============================================================================
+   MATCHA THEME TYPOGRAPHY SYSTEM
+   ============================================================================== */
+.font-luxury {
+  font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.font-matcha-serif {
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+.font-matcha-sans {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.font-luxury-title {
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+.font-editorial {
+  font-family: 'Fraunces', 'DM Serif Display', Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+/* Hide physical scrollbars across all elements while retaining smooth mouse wheel & touch scrolling */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Custom scrollbar override for interactive menus, popovers, and lesson rosters */
+.visible-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: #88b781 rgba(166, 196, 161, 0.2) !important;
+  -ms-overflow-style: auto !important;
+}
+.visible-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+  height: 6px !important;
+}
+.visible-scrollbar::-webkit-scrollbar-track {
+  display: block !important;
+  background: rgba(166, 196, 161, 0.15) !important;
+  border-radius: 9999px !important;
+}
+.visible-scrollbar::-webkit-scrollbar-thumb {
+  display: block !important;
+  background: #88b781 !important;
+  border-radius: 9999px !important;
+}
+.visible-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #5e9556 !important;
+}
+
+/* Deep dark grave drop shadows for dramatic elevation with subtle organic depth */
+.shadow-grave {
+  box-shadow: 0 20px 50px -12px rgba(18, 40, 16, 0.25), 0 10px 25px -5px rgba(0, 0, 0, 0.14);
+}
+
+.shadow-grave-hover {
+  box-shadow: 0 28px 65px -15px rgba(18, 40, 16, 0.35), 0 15px 30px -5px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-grave-card {
+  box-shadow: 0 10px 28px -8px rgba(18, 40, 16, 0.18), 0 4px 12px -3px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-grave-card-hover {
+  box-shadow: 0 18px 40px -10px rgba(18, 40, 16, 0.28), 0 8px 18px -4px rgba(0, 0, 0, 0.14);
+}
+
+/* ==============================================================================
+   LIGHT MATCHA THEME TOKENS (SLIGHTLY DARKER, RICH ORGANIC TEA PALETTE)
+   ============================================================================== */
+.bg-matcha-canvas {
+  background-color: #d7e5d2;
+}
+
+.bg-matcha-card {
+  background-color: #e5f0e1;
+}
+
+.bg-matcha-card-subtle {
+  background-color: #d2e4cd;
+}
+
+.border-matcha {
+  border-color: #a6c4a1;
+}
+
+.border-matcha-light {
+  border-color: #bfd5bb;
+}
+
+.bg-matcha-soft {
+  background-color: #cbdcc7;
+}
+
+.text-matcha-dark {
+  color: #122810;
+}
+
+/* ==============================================================================
+   APPLE iOS LIQUID GLASS EFFECT (TRANSLUCENT & FROSTED SEE-THROUGH)
+   ============================================================================== */
+.ios-glass-card {
+  background-color: rgba(229, 240, 225, 0.60);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 2px solid rgba(166, 196, 161, 0.65);
+  box-shadow: 0 16px 40px -10px rgba(18, 40, 16, 0.16), inset 0 1px 2px rgba(255, 255, 255, 0.75);
+}
+
+.ios-glass-header {
+  background-color: rgba(229, 240, 225, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 2px solid rgba(166, 196, 161, 0.65);
+  box-shadow: 0 4px 20px -4px rgba(18, 40, 16, 0.12);
+}
+
+.ios-glass-nav {
+  background-color: rgba(229, 240, 225, 0.65);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 2px solid rgba(166, 196, 161, 0.65);
+  box-shadow: 0 8px 30px -6px rgba(18, 40, 16, 0.14), inset 0 1px 1.5px rgba(255, 255, 255, 0.8);
+}
+
+/* ==============================================================================
+   MATCHA LIQUID GLASS SUB-AREAS (REPLACES ALL WHITE & FLAT GRAY SUB-AREAS)
+   Lighter or darker than main light matcha (#d7e5d2), with authentic frosted glass
+   ============================================================================== */
+
+/* Light Matcha Glass Sub-Area (Lighter than main #d7e5d2, translucent frosted glass) */
+.ios-glass-sub,
+.bg-matcha-sub {
+  background-color: rgba(240, 248, 238, 0.68) !important;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border-color: rgba(166, 196, 161, 0.65);
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.8), 0 4px 12px -2px rgba(18, 40, 16, 0.06);
+}
+
+/* Deeper/Darker Matcha Glass Sub-Area (Rich matcha tint, frosted glass) */
+.ios-glass-sub-dark,
+.bg-matcha-sub-dark {
+  background-color: rgba(195, 218, 190, 0.68) !important;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border-color: rgba(145, 178, 139, 0.65);
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.6), 0 4px 12px -2px rgba(18, 40, 16, 0.08);
+}
+
+/* Translucent Frosted Glass Input / Field (Soft Matcha Tint, No Solid White) */
+.ios-glass-input,
+.bg-matcha-input {
+  background-color: rgba(242, 250, 240, 0.78) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(166, 196, 161, 0.65);
+  box-shadow: inset 0 1px 2px rgba(18, 40, 16, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.85);
+}
+
+/* Modal / Sheet Liquid Matcha Glass */
+.bg-matcha-modal {
+  background-color: rgba(235, 245, 233, 0.90) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 2px solid rgba(166, 196, 161, 0.75);
+  box-shadow: 0 24px 60px -15px rgba(18, 40, 16, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+/* Matcha border for sub areas (softer than main border) */
+.border-matcha-sub {
+  border-color: rgba(166, 196, 161, 0.60);
+}
+
+.border-matcha-glass {
+  border-color: rgba(166, 196, 161, 0.65) !important;
+}
+
+/* ==============================================================================
+   TASK CHECKLIST & CALENDAR DATE GLOWING NEON-ISH MATCHA OUTLINE HOVER EFFECT
+   Ultra-refined, buttery-smooth floating lift with signature dark-green neon glow
+   ============================================================================== */
+.task-check-card,
+.calendar-date-neon-hover,
+[data-neon-hover="true"] {
+  position: relative;
+  transition-property: transform, box-shadow, border-color, background-color !important;
+  transition-duration: 350ms !important;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform, box-shadow, border-color;
+  outline: none !important;
+}
+
+.task-check-card:hover,
+.calendar-date-neon-hover:hover,
+.task-check-card:focus-visible,
+.calendar-date-neon-hover:focus-visible,
+[data-neon-hover="true"]:hover {
+  border-color: #166534 !important;
+  box-shadow: 0 0 0 1.5px rgba(22, 101, 52, 0.65), 0 6px 20px -2px rgba(22, 101, 52, 0.22), 0 0 12px rgba(34, 197, 94, 0.35) !important;
+  transform: translateY(-2.5px) !important;
+  z-index: 20 !important;
+}
+
+.task-check-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.task-check-card:hover .task-check-dot,
+.calendar-date-neon-hover:hover .task-check-dot,
+.task-check-dot:hover {
+  transform: scale(1.18) !important;
+  filter: drop-shadow(0 0 8px rgba(22, 101, 52, 0.85)) !important;
+}
+
+/* ==============================================================================
+   BUTTERY SMOOTH HOVER ELEVATION ACROSS ALL CARDS & SUBSECTIONS
+   Ultra-smooth floating transitions with zero snappy jumps
+   ============================================================================== */
+.smooth-card-hover {
+  transition-property: transform, box-shadow, border-color, background-color !important;
+  transition-duration: 400ms !important;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform, box-shadow;
+}
+
+.smooth-card-hover:hover {
+  transform: translateY(-2.5px) !important;
+}
+
+

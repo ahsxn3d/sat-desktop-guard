@@ -1,0 +1,358 @@
+// ==============================================================================
+// THE ANTI-BURNOUT SAT RULEBOOK - PRISMA SCHEMA
+// ==============================================================================
+// Comprehensive database schema supporting all website features:
+// - User & NextAuth authentication
+// - Study roadmap task completion & rollover state
+// - Daily anchor time & timeline schedule settings
+// - Daily journal notes & reflection
+// - Comprehensive error log & mistake analysis
+// - Session timer & pacing ratings (Math, Break, RW)
+// - Bluebook official practice exam score tracking (Tests 1-6)
+// - Exam day gear & packing checklist
+// - Desmos & Reading/Writing cheat code bookmarks & mastery
+// - Custom user-defined daily tasks
+// - Admin system announcements & student monitoring
+// ==============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ------------------------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PacingRating {
+  TOO_FAST
+  PERFECT
+  TOO_LATE
+}
+
+enum DomainType {
+  MATH
+  READING_WRITING
+}
+
+// ------------------------------------------------------------------------------
+// USER & AUTHENTICATION (NextAuth Compatible)
+// ------------------------------------------------------------------------------
+
+model User {
+  id                 String                  @id @default(cuid())
+  name               String?
+  email              String?                 @unique
+  emailVerified      DateTime?
+  image              String?
+  role               Role                    @default(USER)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  progress           UserProgress?
+  dayNotes           UserDayNote[]
+  errorLogs          UserErrorLog[]
+  sessionLogs        UserSessionLog[]
+  customTasks        UserCustomTask[]
+  packingItems       UserPackingItem[]
+  cheatCodeBookmarks UserCheatCodeBookmark[]
+  testScores         BluebookTestScore[]
+  stuckConcepts      UserStuckConcept[]
+  aiChatSessions     AIChatSession[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ------------------------------------------------------------------------------
+// USER OVERALL PROGRESS & SETTINGS
+// ------------------------------------------------------------------------------
+
+model UserProgress {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  completedTaskIds      Json     @default("{}") // Map of taskId -> boolean (e.g. {"w1-d1-math": true})
+  taskCompletionDays    Json?    @default("{}") // Map of taskId -> completedDateStr (for dynamic rollover)
+  taskScheduleOverrides Json?    @default("{}") // Map of taskId -> targetDateStr (explicit manual/AI shifts)
+  packingList           Json?    @default("[]") // Array of packing items state
+  anchorTime         String?  @default("20:30") // Daily start anchor time (e.g. "20:30" 8:30 PM)
+  targetScore        Int?     @default(1550) // Student target SAT score
+  examDate           String?  @default("2026-11-07") // Target SAT exam date (Nov 7, 2026)
+  lastActiveDate     String?  // e.g. "2026-09-12"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------------------------
+// DAILY NOTES & REFLECTION
+// ------------------------------------------------------------------------------
+
+model UserDayNote {
+  id        String   @id @default(cuid())
+  userId    String
+  dateStr   String   // e.g. "2026-09-12"
+  notes     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateStr])
+  @@index([userId, dateStr])
+}
+
+// ------------------------------------------------------------------------------
+// ERROR LOG & MISTAKE ANALYSIS
+// ------------------------------------------------------------------------------
+
+model UserErrorLog {
+  id            String   @id @default(cuid())
+  userId        String
+  date          String?  // Date recorded e.g. "2026-09-12"
+  testOrSection String   // e.g. "Bluebook Test #1", "Khan Drill", "UWorld"
+  questionRef   String   // e.g. "Module 2, Q14"
+  domain        String   @default("Math") // "Math" | "Reading/Writing"
+  whyMissed     String   @db.Text // Root cause: why did you miss this question?
+  takeawayRule  String   @db.Text // Takeaway rule: formula, grammar rule, or strategy to prevent repeating
+  reviewed      Boolean  @default(false) // Flagged during buffer review days
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, domain])
+  @@index([userId, reviewed])
+}
+
+// ------------------------------------------------------------------------------
+// STUDY SESSION TIMING & PACING RATINGS
+// ------------------------------------------------------------------------------
+
+model UserSessionLog {
+  id            String   @id @default(cuid())
+  userId        String
+  dateStr       String   // e.g. "2026-09-12"
+  dayTitle      String?  // e.g. "Tomorrow (Sat Sep 12) - Day 1 Session"
+  phase1Seconds Int      @default(0) // Math actual elapsed time in seconds
+  breakSeconds  Int      @default(0) // Break actual elapsed time in seconds
+  phase2Seconds Int      @default(0) // Reading/Writing actual elapsed time in seconds
+  totalSeconds  Int      @default(0) // Total study session time in seconds
+  totalMinutes  Float    @default(0) // Total session time in minutes
+  overallRating String?  // "too_fast" | "perfect" | "too_late"
+  details       Json?    // Complete SectionPacingResult payload for math, break, and rw
+  completedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateStr])
+  @@index([userId, dateStr])
+}
+
+// ------------------------------------------------------------------------------
+// EXAM GEAR & PACKING CHECKLIST
+// ------------------------------------------------------------------------------
+
+model UserPackingItem {
+  id        String   @id @default(cuid())
+  userId    String
+  item      String   // Item description e.g. "Acceptable Photo ID"
+  category  String   @default("essential") // "essential" | "tech" | "comfort" | "custom"
+  required  Boolean  @default(false)
+  packed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, category])
+}
+
+// ------------------------------------------------------------------------------
+// DESMOS & READING/WRITING CHEAT CODE BOOKMARKS & MASTERY
+// ------------------------------------------------------------------------------
+
+model UserCheatCodeBookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  cheatCodeId String   // ID from cheatCodes.ts e.g. "desmos-systems", "desmos-roots"
+  bookmarked  Boolean  @default(true)
+  mastered    Boolean  @default(false)
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cheatCodeId])
+  @@index([userId])
+}
+
+// ------------------------------------------------------------------------------
+// BLUEBOOK OFFICIAL PRACTICE TEST SCORE TRACKER
+// ------------------------------------------------------------------------------
+
+model BluebookTestScore {
+  id          String   @id @default(cuid())
+  userId      String
+  testNumber  Int      // 1 to 6
+  testName    String   // e.g. "Bluebook Practice Test #1"
+  dateTaken   String   // e.g. "2026-09-19"
+  mathScore   Int?     // 200 - 800
+  rwScore     Int?     // 200 - 800
+  totalScore  Int?     // 400 - 1600
+  notes       String?  @db.Text
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, testNumber])
+  @@index([userId])
+}
+
+// ------------------------------------------------------------------------------
+// USER CUSTOM TASKS (Per-Day Personalized Tasks)
+// ------------------------------------------------------------------------------
+
+model UserCustomTask {
+  id        String   @id @default(cuid())
+  userId    String
+  dateStr   String   // e.g. "2026-09-12"
+  label     String
+  subject   String   @default("review") // "math" | "rw" | "test" | "drill" | "buffer" | "review" | "logistics"
+  code      String?
+  topic     String?
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dateStr])
+}
+
+// ------------------------------------------------------------------------------
+// SYSTEM ANNOUNCEMENTS & ADMIN BROADCASTS
+// ------------------------------------------------------------------------------
+
+model SystemAnnouncement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  priority    String   @default("normal") // "normal" | "high" | "urgent"
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ------------------------------------------------------------------------------
+// STUCK CONCEPTS & STRUGGLE TRACKER (Linked with Core Info & Calendar)
+// ------------------------------------------------------------------------------
+
+model UserStuckConcept {
+  id             String   @id @default(cuid())
+  userId         String
+  dateStr        String   // e.g. "2026-09-14"
+  dayNumber      Int?     // e.g. 1
+  lessonCode     String   // e.g. "MATH U3.2"
+  lessonTitle    String   // e.g. "Unit conversion"
+  chapter        String   // e.g. "Problem Solving & Data Analysis", "Algebra", "Advanced Math", "Geometry & Trigonometry"
+  conceptFormula String   // e.g. "Dimensional analysis diagonal canceling", "Slope formula"
+  notes          String   @db.Text // What caused you to get stuck / root cause
+  takeawayRule   String?  @db.Text // Takeaway rule / formula to remember
+  resolved       Boolean  @default(false) // Whether student mastered this concept later
+  errorLogId     String?  // Linked UserErrorLog entry if synchronized
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dateStr])
+  @@index([userId, chapter])
+  @@index([userId, resolved])
+}
+
+// ------------------------------------------------------------------------------
+// AI ASSISTANT & CHAT SESSIONS (Gemini Co-Pilot)
+// ------------------------------------------------------------------------------
+
+model AIChatSession {
+  id        String          @id @default(cuid())
+  userId    String
+  mode      String          @default("plan_modifier") // "plan_modifier" | "teacher" | "coach" | "error_worker"
+  title     String          @default("New Chat")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AIChatMessage[]
+
+  @@index([userId, mode])
+  @@index([userId, createdAt])
+}
+
+model AIChatMessage {
+  id         String        @id @default(cuid())
+  sessionId  String
+  role       String        // "user" | "assistant" | "system"
+  content    String        @db.Text
+  actionData Json?         // Action execution payload e.g. shifted task or logged error
+  createdAt  DateTime      @default(now())
+
+  session    AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
