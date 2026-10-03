@@ -1,16 +1,9 @@
 ﻿@echo off
 setlocal enabledelayedexpansion
-title SAT Focus Guard
+title SAT Focus Guard Desktop
 
-cd /d "C:\Users\Ahsan\Downloads\sat-desktop-guard"
+cd /d %~dp0
 
-:: Check if port 3000 is already active
-netstat -ano | findstr /R ":3000 .*LISTENING" >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [SAT Focus Guard] Server active on port 3000. Launching Desktop Window...
-    npm run electron:start
-    exit /b 0
-)
-
-echo [SAT Focus Guard] Starting dev server and desktop window...
-npm run electron:dev
+echo [SAT Focus Guard] Launching native desktop window...
+call npx electron .
+exit /b 0

@@ -36,7 +36,6 @@ import { ExamPrepSection } from './components/ExamPrepSection';
 import { ScoreCalculatorSection } from './components/ScoreCalculatorSection';
 import { FormulasSection } from './components/FormulasSection';
 import { AICopilotSection } from './components/AICopilotSection';
-import { FocusLockSection } from './components/FocusLockSection';
 import { Sidebar } from './components/Sidebar';
 import { ProgressSection } from './components/ProgressSection';
 import { computeWeeksWithRollover } from './utils/rollover';
@@ -45,6 +44,12 @@ import {
   buildDynamicWeeks, 
   getPhase2BufferMetrics 
 } from './utils/dynamicScheduler';
+import { 
+  DiagnosticProfile, 
+  DEFAULT_DIAGNOSTIC_PROFILE, 
+  generatePersonalizedRoadmap 
+} from './lib/roadmapGenerator';
+import { DiagnosticOnboardingModal } from './components/DiagnosticOnboardingModal';
 import { 
   Calendar, 
   Filter, 
@@ -79,6 +84,7 @@ const STORAGE_KEYS = {
   TASK_TIMINGS: 'anti_burnout_task_timings_clean_v3',
   STUCK_CONCEPTS: 'anti_burnout_stuck_concepts_v1',
   CUSTOM_BUFFER_DATES: 'anti_burnout_custom_buffer_dates_v1',
+  DIAGNOSTIC_PROFILE: 'anti_burnout_diagnostic_profile_v1',
 };
 
 const DEFAULT_SESSION_TIMINGS: Record<string, DaySessionTiming> = {};
@@ -153,7 +159,11 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
   const [taskTimings, setTaskTimings] = useState<Record<string, TaskTimingRecord>>({});
   const [stuckConcepts, setStuckConcepts] = useState<StuckConceptRecord[]>([]);
   const [customBufferDates, setCustomBufferDates] = useState<string[]>(DEFAULT_BUFFER_DATES);
+  const [diagnosticProfile, setDiagnosticProfile] = useState<DiagnosticProfile | null>(null);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [hasMounted, setHasMounted] = useState<boolean>(false);
+
+  const isAdmin = session?.user?.email === (process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'muhammadahsanjaved09@gmail.com');
 
   // Push snapshot to undo stack (up to 25 historical snapshots)
   const pushUndoSnapshot = (snapshot: Record<string, string>) => {
@@ -248,6 +258,13 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
           if (Array.isArray(parsed)) {
             setCustomBufferDates(Array.from(new Set([...DEFAULT_BUFFER_DATES, ...parsed])));
           }
+        } catch (e) {}
+      }
+
+      const savedProfile = localStorage.getItem(STORAGE_KEYS.DIAGNOSTIC_PROFILE);
+      if (savedProfile) {
+        try {
+          setDiagnosticProfile(JSON.parse(savedProfile));
         } catch (e) {}
       }
     } catch (e) {
@@ -434,9 +451,18 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
     }
   }, []);
 
-  // Merge dynamic custom buffer days with STUDY_PLAN_WEEKS and user completion states & rollover logic
+  // Dynamic base roadmap: Admin stays strictly on authoritative 57-day blueprint;
+  // non-admin students with a diagnostic profile use their customized Phase 1 & 2 roadmap!
+  const basePlan: WeekPlan[] = useMemo(() => {
+    if (isAdmin || !diagnosticProfile) {
+      return STUDY_PLAN_WEEKS;
+    }
+    return generatePersonalizedRoadmap(diagnosticProfile);
+  }, [isAdmin, diagnosticProfile]);
+
+  // Merge dynamic custom buffer days with basePlan and user completion states & rollover logic
   const weeks: WeekPlan[] = useMemo(() => {
-    const dynamicWeeks = buildDynamicWeeks(customBufferDates, STUDY_PLAN_WEEKS);
+    const dynamicWeeks = buildDynamicWeeks(customBufferDates, basePlan);
     return computeWeeksWithRollover(
       dynamicWeeks,
       completedTaskIds,
@@ -445,7 +471,7 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
       currentTrackerDate,
       taskScheduleOverrides
     );
-  }, [customBufferDates, completedTaskIds, taskCompletionDay, dayNotes, currentTrackerDate, taskScheduleOverrides]);
+  }, [customBufferDates, basePlan, completedTaskIds, taskCompletionDay, dayNotes, currentTrackerDate, taskScheduleOverrides]);
 
   // Flattened all days list
   const allDays = useMemo(() => {
@@ -806,6 +832,7 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
         streakCount={15}
+        onOpenDiagnostic={() => setIsOnboardingOpen(true)}
       />
 
       {/* 2. MAIN SCROLLABLE CONTENT WRAPPER (Shifts width smoothly with sidebar) */}
@@ -1219,7 +1246,7 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-black uppercase tracking-wider text-sky-800 font-['JetBrains_Mono'] flex items-center gap-1.5">
                   <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Section 5 &bull; Phase 2: The Bluebook Arena (10-Day Schedule • Oct 28–Nov 6)</span>
+                  <span>Section 5 &bull; Phase 2: The Bluebook Arena (13-Day Schedule • Oct 25–Nov 6)</span>
                 </span>
                 {activeSection !== 'all' && (
                   <button
@@ -1335,30 +1362,6 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
         {/* ============================================================ */}
         {/* DEDICATED FULL PAGE VIEW: SCORE & GAP CALCULATOR             */}
         {/* ============================================================ */}
-        
-        {/* ============================================================ */}
-        {/* DEDICATED FULL PAGE VIEW: FOCUS LOCK & APP BLOCKER           */}
-        {/* ============================================================ */}
-        {activeSection === 'focus-lock' && (
-          <ScrollReveal id="section-focus-lock-page">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-black uppercase tracking-wider text-rose-800 font-['JetBrains_Mono'] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Desktop App Blocker & Focus Guard</span>
-                </span>
-                <button
-                  onClick={() => handleSelectSection('calendar')}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-950 cursor-pointer"
-                >
-                  &larr; Back to Calendar
-                </button>
-              </div>
-              <FocusLockSection />
-            </div>
-          </ScrollReveal>
-        )}
-
         {activeSection === 'score-calculator' && (
           <ScrollReveal id="section-score-calculator-page">
             <div className="space-y-4">
@@ -1495,6 +1498,34 @@ export default function App({ initialSection = 'all', initialSubTab, initialSubj
         items={packingList}
         onToggleItem={handleTogglePackingItem}
         onAddItem={handleAddPackingItem}
+      />
+
+      {/* 8-to-10 Question Diagnostic Assessment & Roadmap Wizard */}
+      <DiagnosticOnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        isAdmin={isAdmin}
+        initialProfile={diagnosticProfile || DEFAULT_DIAGNOSTIC_PROFILE}
+        onSaveRoadmap={(newProfile) => {
+          setDiagnosticProfile(newProfile);
+          try {
+            localStorage.setItem(STORAGE_KEYS.DIAGNOSTIC_PROFILE, JSON.stringify(newProfile));
+          } catch (e) {}
+          setIsOnboardingOpen(false);
+          // Sync to backend if signed in
+          fetch('/api/user/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ diagnosticProfile: newProfile })
+          }).catch(() => {});
+        }}
+        onResetToAdminBlueprint={() => {
+          setDiagnosticProfile(null);
+          try {
+            localStorage.removeItem(STORAGE_KEYS.DIAGNOSTIC_PROFILE);
+          } catch (e) {}
+          setIsOnboardingOpen(false);
+        }}
       />
     </div>
   );

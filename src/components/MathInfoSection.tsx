@@ -29,6 +29,8 @@ import {
   MathFormulaItem
 } from '../data/mathCurriculumUpgrade';
 import { StuckConceptRecord } from '../types';
+import { KhanPracticeModal } from './KhanPracticeModal';
+import { getLessonMastery } from '../lib/masteryTracker';
 
 interface MathInfoSectionProps {
   stuckConcepts?: StuckConceptRecord[];
@@ -44,6 +46,25 @@ export const MathInfoSection: React.FC<MathInfoSectionProps> = ({
   const [selectedDomainId, setSelectedDomainId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [, setMasteryTick] = useState(0);
+
+  const [practiceModalState, setPracticeModalState] = useState<{
+    isOpen: boolean;
+    mode: 'lesson_practice' | 'unit_test';
+    lessonCode: string;
+    lessonTitle: string;
+    unitNumber: number;
+    unitTitle: string;
+    subject: 'math';
+  }>({
+    isOpen: false,
+    mode: 'lesson_practice',
+    lessonCode: '',
+    lessonTitle: '',
+    unitNumber: 2,
+    unitTitle: '',
+    subject: 'math'
+  });
 
   // Initialize all 37 lessons as expanded for immediate study accessibility
   const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>(() => {
@@ -237,8 +258,26 @@ export const MathInfoSection: React.FC<MathInfoSectionProps> = ({
                   {domain.description}
                 </p>
               </div>
-              <div className="text-[11px] font-bold px-3 py-1 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 font-['JetBrains_Mono'] shrink-0">
-                {domain.lessons.length} Lesson{domain.lessons.length !== 1 ? 's' : ''}
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setPracticeModalState({
+                    isOpen: true,
+                    mode: 'unit_test',
+                    lessonCode: `Math U${domain.foundationsUnit}.1`,
+                    lessonTitle: `Unit ${domain.foundationsUnit} Comprehensive Test`,
+                    unitNumber: domain.foundationsUnit,
+                    unitTitle: domain.domainTitle,
+                    subject: 'math'
+                  })}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs font-['JetBrains_Mono'] hover:brightness-110 active:scale-98 transition shadow-md cursor-pointer"
+                >
+                  <span>👑</span>
+                  <span>Take Unit {domain.foundationsUnit} Test (10 Qs)</span>
+                </button>
+                <div className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 font-['JetBrains_Mono'] shrink-0">
+                  {domain.lessons.length} Lesson{domain.lessons.length !== 1 ? 's' : ''}
+                </div>
               </div>
             </div>
 
@@ -247,6 +286,8 @@ export const MathInfoSection: React.FC<MathInfoSectionProps> = ({
               {domain.lessons.map((lesson) => {
                 const isExpanded = expandedLessons[lesson.id] ?? true;
                 const struggles = struggleCountByLesson[lesson.lessonTitle.toLowerCase()] || 0;
+                const lessonCode = `Math U${domain.foundationsUnit}.${lesson.lessonNumber}`;
+                const mastery = getLessonMastery(lessonCode);
 
                 return (
                   <div
@@ -283,7 +324,43 @@ export const MathInfoSection: React.FC<MathInfoSectionProps> = ({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        {/* Live Khan Mastery Chip */}
+                        <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider font-['JetBrains_Mono'] border shadow-xs ${
+                          mastery.level === 'mastered'
+                            ? 'bg-amber-400 border-amber-500 text-slate-950 font-black'
+                            : mastery.level === 'proficient'
+                            ? 'bg-emerald-600 border-emerald-700 text-white font-bold'
+                            : mastery.level === 'familiar'
+                            ? 'bg-blue-600 border-blue-700 text-white font-bold'
+                            : mastery.level === 'attempted'
+                            ? 'bg-orange-500 border-orange-600 text-white font-bold'
+                            : 'bg-gray-100 border-gray-300 text-gray-600'
+                        }`}>
+                          {mastery.level === 'mastered' ? '👑 Mastered' : mastery.level === 'proficient' ? 'Proficient' : mastery.level === 'familiar' ? 'Familiar' : mastery.level === 'attempted' ? 'Attempted' : 'Not Started'}
+                        </span>
+
+                        {/* 4-Question Practice Drill Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPracticeModalState({
+                              isOpen: true,
+                              mode: 'lesson_practice',
+                              lessonCode,
+                              lessonTitle: lesson.lessonTitle,
+                              unitNumber: domain.foundationsUnit,
+                              unitTitle: domain.domainTitle,
+                              subject: 'math'
+                            });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-[#20441d] to-[#142d12] text-amber-300 border border-[#3b7234] hover:brightness-110 active:scale-98 text-[11px] font-black font-['JetBrains_Mono'] shadow-xs cursor-pointer"
+                        >
+                          <Zap className="w-3 h-3 text-amber-300" />
+                          <span>Practice (4 Qs)</span>
+                        </button>
+
                         {onLogStruggle && (
                           <button
                             type="button"
@@ -495,6 +572,19 @@ export const MathInfoSection: React.FC<MathInfoSectionProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Official Khan Academy Practice & Unit Test Modal */}
+      <KhanPracticeModal
+        isOpen={practiceModalState.isOpen}
+        onClose={() => setPracticeModalState((prev) => ({ ...prev, isOpen: false }))}
+        mode={practiceModalState.mode}
+        lessonCode={practiceModalState.lessonCode}
+        lessonTitle={practiceModalState.lessonTitle}
+        unitNumber={practiceModalState.unitNumber}
+        unitTitle={practiceModalState.unitTitle}
+        subject={practiceModalState.subject}
+        onMasteryUpdated={() => setMasteryTick((t) => t + 1)}
+      />
     </div>
   );
 };

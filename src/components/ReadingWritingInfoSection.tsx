@@ -33,12 +33,33 @@ import {
   RWLesson,
   RWUnit
 } from '../data/readingWritingCurriculum';
+import { KhanPracticeModal } from './KhanPracticeModal';
+import { getLessonMastery } from '../lib/masteryTracker';
 
 export const ReadingWritingInfoSection: React.FC = () => {
   const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeSpecialView, setActiveSpecialView] = useState<'all' | 'bare-bones' | 'transitions' | 'difficulty'>('all');
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [, setMasteryTick] = useState(0);
+
+  const [practiceModalState, setPracticeModalState] = useState<{
+    isOpen: boolean;
+    mode: 'lesson_practice' | 'unit_test';
+    lessonCode: string;
+    lessonTitle: string;
+    unitNumber: number;
+    unitTitle: string;
+    subject: 'rw';
+  }>({
+    isOpen: false,
+    mode: 'lesson_practice',
+    lessonCode: '',
+    lessonTitle: '',
+    unitNumber: 2,
+    unitTitle: '',
+    subject: 'rw'
+  });
 
   // Expanded state for lessons
   const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>({
@@ -451,8 +472,26 @@ export const ReadingWritingInfoSection: React.FC = () => {
                     {unit.description}
                   </p>
                 </div>
-                <div className="text-[11px] font-bold text-[#355f30] font-['JetBrains_Mono'] shrink-0 bg-white/70 px-3 py-1 rounded-xl border border-[#a6c4a1]">
-                  {unit.lessons.length} Lesson{unit.lessons.length !== 1 ? 's' : ''} in Unit
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setPracticeModalState({
+                      isOpen: true,
+                      mode: 'unit_test',
+                      lessonCode: `R&W U${unit.unitNumber}.1`,
+                      lessonTitle: `Unit ${unit.unitNumber} Comprehensive Test`,
+                      unitNumber: unit.unitNumber,
+                      unitTitle: unit.title,
+                      subject: 'rw'
+                    })}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-xs font-['JetBrains_Mono'] hover:brightness-110 active:scale-98 transition shadow-md cursor-pointer"
+                  >
+                    <span>👑</span>
+                    <span>Take Unit {unit.unitNumber} Test (10 Qs)</span>
+                  </button>
+                  <div className="text-[11px] font-bold text-[#355f30] font-['JetBrains_Mono'] shrink-0 bg-white/70 px-3 py-1.5 rounded-xl border border-[#a6c4a1]">
+                    {unit.lessons.length} Lesson{unit.lessons.length !== 1 ? 's' : ''} in Unit
+                  </div>
                 </div>
               </div>
 
@@ -460,6 +499,8 @@ export const ReadingWritingInfoSection: React.FC = () => {
               <div className="grid grid-cols-1 gap-4">
                 {unit.lessons.map((lesson) => {
                   const isExpanded = !!expandedLessons[lesson.id];
+                  const lessonCode = `R&W U${lesson.unitNumber}.${lesson.lessonNumber}`;
+                  const mastery = getLessonMastery(lessonCode);
 
                   return (
                     <div
@@ -469,7 +510,7 @@ export const ReadingWritingInfoSection: React.FC = () => {
                       {/* Lesson Header Accordion Toggle */}
                       <div
                         onClick={() => toggleLesson(lesson.id)}
-                        className="p-4 sm:p-5 flex items-start justify-between gap-3 cursor-pointer hover:bg-matcha-sub/70 transition select-none"
+                        className="p-4 sm:p-5 flex items-start justify-between gap-3 cursor-pointer hover:bg-matcha-sub/70 transition select-none flex-wrap"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -497,8 +538,46 @@ export const ReadingWritingInfoSection: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0 text-[#3d5a39] pt-1">
-                          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap pt-1">
+                          {/* Live Khan Mastery Chip */}
+                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider font-['JetBrains_Mono'] border shadow-xs ${
+                            mastery.level === 'mastered'
+                              ? 'bg-amber-400 border-amber-500 text-slate-950 font-black'
+                              : mastery.level === 'proficient'
+                              ? 'bg-emerald-600 border-emerald-700 text-white font-bold'
+                              : mastery.level === 'familiar'
+                              ? 'bg-blue-600 border-blue-700 text-white font-bold'
+                              : mastery.level === 'attempted'
+                              ? 'bg-orange-500 border-orange-600 text-white font-bold'
+                              : 'bg-gray-100 border-gray-300 text-gray-600'
+                          }`}>
+                            {mastery.level === 'mastered' ? '👑 Mastered' : mastery.level === 'proficient' ? 'Proficient' : mastery.level === 'familiar' ? 'Familiar' : mastery.level === 'attempted' ? 'Attempted' : 'Not Started'}
+                          </span>
+
+                          {/* 4-Question Practice Drill Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPracticeModalState({
+                                isOpen: true,
+                                mode: 'lesson_practice',
+                                lessonCode,
+                                lessonTitle: lesson.lessonTitle,
+                                unitNumber: lesson.unitNumber,
+                                unitTitle: unit.title,
+                                subject: 'rw'
+                              });
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-[#20441d] to-[#142d12] text-amber-300 border border-[#3b7234] hover:brightness-110 active:scale-98 text-[11px] font-black font-['JetBrains_Mono'] shadow-xs cursor-pointer"
+                          >
+                            <Zap className="w-3 h-3 text-amber-300" />
+                            <span>Practice (4 Qs)</span>
+                          </button>
+
+                          <div className="p-1 rounded-lg bg-white/70 border border-[#a6c4a1] text-[#3d5a39]">
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </div>
                         </div>
                       </div>
 
@@ -668,6 +747,19 @@ export const ReadingWritingInfoSection: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Official Khan Academy Practice & Unit Test Modal */}
+      <KhanPracticeModal
+        isOpen={practiceModalState.isOpen}
+        onClose={() => setPracticeModalState((prev) => ({ ...prev, isOpen: false }))}
+        mode={practiceModalState.mode}
+        lessonCode={practiceModalState.lessonCode}
+        lessonTitle={practiceModalState.lessonTitle}
+        unitNumber={practiceModalState.unitNumber}
+        unitTitle={practiceModalState.unitTitle}
+        subject={practiceModalState.subject}
+        onMasteryUpdated={() => setMasteryTick((t) => t + 1)}
+      />
     </div>
   );
 };

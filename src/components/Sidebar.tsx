@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Shield,
   LayoutDashboard,
   CalendarDays,
   Bot,
@@ -122,16 +121,6 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     category: 'info'
   },
   {
-    id: 'focus-lock',
-    label: 'Focus Shield & App Lock',
-    shortLabel: 'Focus Guard',
-    href: '/focus-lock',
-    icon: Shield,
-    badge: 'GUARD',
-    badgeColor: 'bg-rose-500 text-white font-black border border-rose-300 shadow-sm animate-pulse',
-    category: 'tools'
-  },
-  {
     id: 'error-log',
     label: 'Mistake Autopsy',
     shortLabel: 'Error Log',
@@ -175,6 +164,7 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
   streakCount?: number;
+  onOpenDiagnostic?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -186,7 +176,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   mobileOpen = false,
   onCloseMobile,
-  streakCount = 15
+  streakCount = 15,
+  onOpenDiagnostic
 }) => {
   const { data: session } = useSession();
 
@@ -656,6 +647,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
         </div>
+
+        {/* AI STUDY MAP / DIAGNOSTIC BUTTON */}
+        {onOpenDiagnostic && (
+          <div className="px-2.5 py-1.5 shrink-0 relative z-10">
+            <button
+              type="button"
+              onClick={onOpenDiagnostic}
+              className={`w-full p-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer border border-amber-300 font-['JetBrains_Mono'] active:scale-98 ${
+                isCollapsed ? 'px-0' : ''
+              }`}
+              title="Configure AI Study Map & Diagnostic Assessment"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950 fill-slate-950 shrink-0" />
+              {!isCollapsed && <span className="truncate">AI Study Map & Diagnostic</span>}
+            </button>
+          </div>
+        )}
 
         {/* ============================================================== */}
         {/* BOTTOM SECTION: SLIM STATS (ZERO CROP GLASS FOOTER)           */}
