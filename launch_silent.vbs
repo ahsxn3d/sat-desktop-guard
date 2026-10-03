@@ -1,3 +1,4 @@
-﻿Set WshShell = CreateObject("WScript.Shell")
+Set WshShell = CreateObject("WScript.Shell")
 WshShell.CurrentDirectory = "C:\Users\Ahsan\Downloads\sat-desktop-guard"
-WshShell.Run "cmd /c launch-sat-guard.bat", 0, False
+WshShell.Run "cmd.exe /c launch-sat-guard.bat", 0, False
+Set WshShell = Nothing
