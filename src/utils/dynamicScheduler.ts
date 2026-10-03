@@ -10,7 +10,118 @@ export const DEFAULT_BUFFER_DATES: string[] = [
   '2026-09-28',
   '2026-09-29',
   '2026-09-30',
+  '2026-10-01',
+  '2026-10-02',
 ];
+
+/**
+ * Builds the calendar weeks from the authoritative master plan (STUDY_PLAN_WEEKS).
+ *
+ * - If the user has NOT added any extra buffer days beyond those already in the plan,
+ *   the master plan is returned exactly as written (dates, Sundays, Phase 2 — untouched).
+ * - If the user marks extra buffer days, only Phase 1 curriculum days shift forward.
+ *   Overflow consumes elastic Phase 2 days (drills/reviews), never tests, rest-before-exam,
+ *   or exam day.
+ */
+export function buildDynamicWeeks(
+  customBufferDates: string[],
+  baseWeeks: WeekPlan[]
+): WeekPlan[] {
+  const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
+  const weeks = clone(baseWeeks);
+  const allDays = weeks.flatMap((w) => w.days);
+
+  const baseBufferDates = new Set(allDays.filter((d) => d.isBuffer).map((d) => d.dateStr));
+  const extraBuffers = new Set(customBufferDates.filter((d) => !baseBufferDates.has(d)));
+
+  if (extraBuffers.size === 0) return weeks;
+
+  // Curriculum queue: Phase 1 study days in order
+  const curriculum = allDays
+    .filter((d) => d.phase === 'foundations' && !d.isBuffer && d.dayNumber !== undefined)
+    .sort((a, b) => (a.dayNumber || 0) - (b.dayNumber || 0));
+
+  let qi = 0;
+  const isProtected = (d: DayPlan) =>
+    d.isTestDay || d.phase === 'exam' || (d.isBuffer && d.phase !== 'foundations');
+
+  for (const week of weeks) {
+    week.days = week.days.map((slot) => {
+      const meta = {
+        id: slot.dateStr,
+        dateStr: slot.dateStr,
+        dayOfWeek: slot.dayOfWeek,
+        formattedDate: slot.formattedDate,
+        weekId: slot.weekId,
+        weekNumber: slot.weekNumber,
+        weekTitle: slot.weekTitle,
+      };
+
+      // Base rest/buffer days stay as they are
+      if (slot.isBuffer && slot.phase === 'foundations') return slot;
+
+      // User-added buffer day
+      if (extraBuffers.has(slot.dateStr) && !isProtected(slot)) {
+        return {
+          ...meta,
+          phase: slot.phase,
+          isBuffer: true,
+          isTestDay: false,
+          studyTimeMinutes: 0,
+          breakTimeMinutes: 0,
+          totalTimeMinutes: 0,
+          specialInstructions:
+            'Anti-Burnout Buffer Day: Recovery window. All remaining syllabus shifts forward cleanly without loss.',
+          tasks: [
+            {
+              id: `buffer-${slot.dateStr}`,
+              label: 'Anti-Burnout Buffer Day • Zero Assigned Study',
+              subject: 'buffer',
+              durationMinutes: 0,
+              completed: false,
+            },
+          ],
+        } as DayPlan;
+      }
+
+      // Phase 1 slot, or elastic Phase 2 slot while curriculum is still pending
+      const isPhase1Slot = slot.phase === 'foundations' && !slot.isBuffer;
+      const canAbsorb = isPhase1Slot || (!isProtected(slot) && qi < curriculum.length);
+      if (canAbsorb && qi < curriculum.length) {
+        const src = curriculum[qi++];
+        return { ...src, ...meta, phase: 'foundations', isBuffer: false } as DayPlan;
+      }
+      if (isPhase1Slot) {
+        // Curriculum exhausted early — leave a light review day
+        return {
+          ...meta,
+          phase: 'foundations',
+          isBuffer: false,
+          studyTimeMinutes: 45,
+          breakTimeMinutes: 0,
+          totalTimeMinutes: 45,
+          specialInstructions: 'Phase 1 complete. Light error-log review.',
+          tasks: [
+            {
+              id: `review-${slot.dateStr}`,
+              label: 'Error-log review & weak-skill cleanup (45 min)',
+              subject: 'review',
+              durationMinutes: 45,
+              completed: false,
+            },
+          ],
+        } as DayPlan;
+      }
+      return slot;
+    });
+  }
+
+  return weeks;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy scheduler (kept for reference; no longer used)
+// ---------------------------------------------------------------------------
 
 export interface Phase2Metrics {
   totalBufferDays: number;
@@ -164,10 +275,10 @@ const PHASE_2_MASTER_CANDIDATES: Phase2TemplateItem[] = [
 ];
 
 /**
- * Dynamically constructs the 8 weeks based on any active buffer dates.
- * If baseWeeks already contains the shifted schedule, it can be passed in.
+ * Legacy: dynamically constructs the 8 weeks based on any active buffer dates.
+ * Superseded by buildDynamicWeeks above (forced Sunday rests; ignored master plan).
  */
-export function buildDynamicWeeks(
+export function legacyBuildDynamicWeeks(
   customBufferDates: string[],
   baseWeeks: WeekPlan[]
 ): WeekPlan[] {
@@ -358,11 +469,11 @@ export function buildDynamicWeeks(
   const weekDefinitions = [
     { id: 'week-1', num: 1, title: 'Week 1: Problem Solving & Advanced Math Foundations', range: 'Sep 14 to Sep 20', subtitle: 'Ratios, unit conversions, percentages, data distributions & quadratic foundations.', phase: 'foundations' as const },
     { id: 'week-2', num: 2, title: 'Week 2: Math U5 Launch & Recovery Buffer Block', range: 'Sep 21 to Sep 27', subtitle: 'Day 7 completed, then Sep 22–27 buffer window for full illness recovery.', phase: 'foundations' as const },
-    { id: 'week-3', num: 3, title: 'Week 3: Illness Buffer Recovery & Phase 1 Resume (Oct 01 - Oct 04)', range: 'Sep 28 to Oct 04', subtitle: 'Sep 28-30 illness recovery; Days 8–10 launch trig, circles, linear systems & distributions.', phase: 'foundations' as const },
-    { id: 'week-4', num: 4, title: 'Week 4: Advanced Quadratics, Functions, Geometry & Reading Skills', range: 'Oct 05 to Oct 11', subtitle: 'Days 11–16 cover ratios, data inferences, factoring, polynomials & rhetorical skills.', phase: 'foundations' as const },
-    { id: 'week-5', num: 5, title: 'Week 5: Advanced Algebra, Statistics & Grammar Mastery', range: 'Oct 12 to Oct 18', subtitle: 'Days 17–22 master 3D geometry, circle equations, linear inequalities, percentages & data.', phase: 'foundations' as const },
-    { id: 'week-6', num: 6, title: 'Week 6: Exponential Models, Advanced Quadratics & Grammar Systems', range: 'Oct 19 to Oct 25', subtitle: 'Days 23–28 cover scatterplots, quadratics, systems, word problems & grammar conventions.', phase: 'foundations' as const },
-    { id: 'week-7', num: 7, title: 'Week 7: Phase 1 Climax (Ends Oct 27) & Phase 2 Launch (Tests #1 & #2)', range: 'Oct 26 to Nov 01', subtitle: 'Days 29-30 complete all 145 skills by Tue Oct 27. Phase 2 launches Wed Oct 28 with Test #1 & Test #2 on Fri Oct 30.', phase: 'bluebook' as const },
+    { id: 'week-3', num: 3, title: 'Week 3: Illness Buffer Recovery & Phase 1 Resume (Oct 03 - Oct 04)', range: 'Sep 28 to Oct 04', subtitle: 'Sep 28-Oct 2 illness recovery; Days 8–9 resume Phase 1 foundations.', phase: 'foundations' as const },
+    { id: 'week-4', num: 4, title: 'Week 4: Advanced Quadratics, Functions, Geometry & Reading Skills', range: 'Oct 05 to Oct 11', subtitle: 'Days 10–15 cover ratios, data inferences, factoring, polynomials & rhetorical skills.', phase: 'foundations' as const },
+    { id: 'week-5', num: 5, title: 'Week 5: Advanced Algebra, Statistics & Grammar Mastery', range: 'Oct 12 to Oct 18', subtitle: 'Days 16–21 master 3D geometry, circle equations, linear inequalities, percentages & data.', phase: 'foundations' as const },
+    { id: 'week-6', num: 6, title: 'Week 6: Exponential Models, Advanced Quadratics & Grammar Systems', range: 'Oct 19 to Oct 25', subtitle: 'Days 22–27 cover scatterplots, quadratics, systems, word problems & grammar conventions.', phase: 'foundations' as const },
+    { id: 'week-7', num: 7, title: 'Week 7: Phase 1 Climax (Ends Oct 24) & Phase 2 Launch (Test #1)', range: 'Oct 26 to Nov 01', subtitle: 'Days 28-29 complete all 145 skills by Sat Oct 24. Phase 2 launches Mon Oct 26 with Test #1 & Test #2 on Fri Oct 30.', phase: 'bluebook' as const },
     { id: 'week-8', num: 8, title: 'Week 8: Test #3 Final Mock, Taper, Packout & Official SAT Exam Day', range: 'Nov 02 to Nov 07', subtitle: 'Test #3 (Tue Nov 3), light taper, bag packout, full rest & Sat Nov 7 Exam Day.', phase: 'exam' as const },
   ];
 
@@ -411,9 +522,9 @@ export function getPhase2BufferMetrics(customBufferDates: string[]): Phase2Metri
   return {
     totalBufferDays,
     phase2FillerDaysSubtracted,
-    phase1CompletionDateStr: '2026-10-27',
-    phase1CompletionFormatted: 'Tue Oct 27',
-    test1DateStr: '2026-10-28',
+    phase1CompletionDateStr: '2026-10-24',
+    phase1CompletionFormatted: 'Sat Oct 24',
+    test1DateStr: '2026-10-26',
     test2DateStr: '2026-10-30',
     test3DateStr: '2026-11-03',
     examDateStr: '2026-11-07',
