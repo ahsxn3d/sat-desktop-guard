@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
@@ -10,7 +10,7 @@ let nextDevProcess = null;
 const guardService = new FocusGuardService();
 
 const TARGET_PORT = 3000;
-const START_URL = process.env.ELECTRON_START_URL || http://localhost:;
+const START_URL = process.env.ELECTRON_START_URL || 'http://localhost:3000';
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
@@ -63,15 +63,15 @@ function checkPortReady(port, callback) {
 function ensureDevServer(onReady) {
   checkPortReady(TARGET_PORT, (ready) => {
     if (ready) {
-      console.log([Electron] Port  is already alive. Connecting...);
+      console.log('[Electron] Port ' + TARGET_PORT + ' is already active. Connecting...');
       onReady();
       return;
     }
 
-    console.log([Electron] Port  not active. Spawning next dev server...);
+    console.log('[Electron] Port ' + TARGET_PORT + ' not active. Spawning next dev server...');
     const projectRoot = path.join(__dirname, '..');
     
-    // Start Next.js in background
+    // Start Next.js dev server in the background
     nextDevProcess = spawn('npm.cmd', ['run', 'dev'], {
       cwd: projectRoot,
       shell: true,
@@ -79,12 +79,11 @@ function ensureDevServer(onReady) {
       detached: false,
     });
 
-    // Poll until ready
     let attempts = 0;
     const interval = setInterval(() => {
       attempts++;
       checkPortReady(TARGET_PORT, (isUp) => {
-        if (isUp || attempts > 45) {
+        if (isUp || attempts > 50) {
           clearInterval(interval);
           onReady();
         }
@@ -112,14 +111,11 @@ function createMainWindow() {
     autoHideMenuBar: true,
   });
 
-  // Guard navigation so all app pages stay inside the native Electron window!
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // If it is localhost, open in the same window
     if (url.startsWith('http://localhost:3000') || url.startsWith('http://127.0.0.1:3000')) {
       mainWindow.loadURL(url);
       return { action: 'deny' };
     }
-    // External links can be handled safely
     return { action: 'allow' };
   });
 
@@ -143,7 +139,7 @@ function createMainWindow() {
         }
         mainWindow.show();
         mainWindow.focus();
-      }, 600);
+      }, 500);
     }
   });
 
